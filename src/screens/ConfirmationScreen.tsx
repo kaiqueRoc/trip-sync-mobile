@@ -32,10 +32,38 @@ export function ConfirmationScreen() {
   const { current, reset } = useNavigation();
   const { bookingId } = current.params as { bookingId: string };
   const [booking, setBooking] = useState<BookingResponse | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [reloadKey, setReloadKey] = useState(0);
 
   useEffect(() => {
-    getBooking(bookingId).then(setBooking);
-  }, [bookingId]);
+    let cancelled = false;
+    setError(null);
+
+    getBooking(bookingId)
+      .then((res) => {
+        if (!cancelled) setBooking(res);
+      })
+      .catch((err) => {
+        if (!cancelled) setError(err instanceof Error ? err.message : "Erro ao carregar reserva");
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [bookingId, reloadKey]);
+
+  if (error) {
+    return (
+      <SafeAreaView style={styles.safe}>
+        <View style={styles.errorBox}>
+          <Text style={styles.error}>{error}</Text>
+          <TouchableOpacity style={styles.retryBtn} onPress={() => setReloadKey((k) => k + 1)}>
+            <Text style={styles.retryBtnText}>Tentar novamente</Text>
+          </TouchableOpacity>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   if (!booking) {
     return (
@@ -98,6 +126,15 @@ function Detail({ label, value }: { label: string; value: string }) {
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.slate50 },
+  errorBox: { flex: 1, alignItems: "center", justifyContent: "center", paddingHorizontal: 20, gap: 12 },
+  error: { color: colors.red, textAlign: "center" },
+  retryBtn: {
+    backgroundColor: colors.brand,
+    borderRadius: 10,
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+  },
+  retryBtnText: { color: colors.white, fontWeight: "700", fontSize: 13 },
   content: { padding: 20 },
   badge: {
     backgroundColor: colors.emeraldBg,

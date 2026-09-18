@@ -40,10 +40,26 @@ export function SeatMapScreen() {
 
   const [seats, setSeats] = useState<Seat[] | null>(null);
   const [selected, setSelected] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [reloadKey, setReloadKey] = useState(0);
 
   useEffect(() => {
-    getSeatMap(params.flightId, params.cabinClass).then((res) => setSeats(res.seats));
-  }, [params.flightId, params.cabinClass]);
+    let cancelled = false;
+    setSeats(null);
+    setError(null);
+
+    getSeatMap(params.flightId, params.cabinClass)
+      .then((res) => {
+        if (!cancelled) setSeats(res.seats);
+      })
+      .catch((err) => {
+        if (!cancelled) setError(err instanceof Error ? err.message : "Erro ao carregar assentos");
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [params.flightId, params.cabinClass, reloadKey]);
 
   const rows = seats ? Array.from(new Set(seats.map((s) => s.row))).sort((a, b) => a - b) : [];
   const byKey = new Map((seats ?? []).map((s) => [`${s.row}${s.column}`, s]));
@@ -71,7 +87,16 @@ export function SeatMapScreen() {
         </Text>
       </View>
 
-      {!seats && <ActivityIndicator style={{ marginTop: 40 }} color={colors.brand} />}
+      {!seats && !error && <ActivityIndicator style={{ marginTop: 40 }} color={colors.brand} />}
+
+      {error && (
+        <View style={styles.errorBox}>
+          <Text style={styles.error}>{error}</Text>
+          <TouchableOpacity style={styles.retryBtn} onPress={() => setReloadKey((k) => k + 1)}>
+            <Text style={styles.retryBtnText}>Tentar novamente</Text>
+          </TouchableOpacity>
+        </View>
+      )}
 
       <ScrollView contentContainerStyle={styles.content}>
         {rows.map((row) => (
@@ -133,6 +158,15 @@ const styles = StyleSheet.create({
   cabin: { fontSize: 11, color: colors.brand, fontWeight: "700", marginTop: 10, textTransform: "uppercase" },
   title: { fontSize: 18, fontWeight: "800", color: colors.slate950, marginTop: 2 },
   subtitle: { fontSize: 13, color: colors.slate500, marginTop: 2, marginBottom: 8 },
+  errorBox: { alignItems: "center", marginTop: 40, paddingHorizontal: 20, gap: 12 },
+  error: { color: colors.red, textAlign: "center" },
+  retryBtn: {
+    backgroundColor: colors.brand,
+    borderRadius: 10,
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+  },
+  retryBtnText: { color: colors.white, fontWeight: "700", fontSize: 13 },
   content: { padding: 20, alignItems: "center", gap: 6 },
   row: { flexDirection: "row", alignItems: "center", gap: 6 },
   rowLabel: { width: 20, fontSize: 11, color: colors.slate400, textAlign: "center" },

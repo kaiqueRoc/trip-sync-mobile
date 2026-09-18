@@ -40,10 +40,14 @@ export function MyBookingsScreen() {
   const { push } = useNavigation();
   const [bookings, setBookings] = useState<BookingResponse[] | null>(null);
   const [cancellingId, setCancellingId] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   const load = useCallback(() => {
     if (!state.user) return;
-    listBookings({ page: 1, pageSize: 20 }).then((res) => setBookings(res.data));
+    setError(null);
+    listBookings({ page: 1, pageSize: 20 })
+      .then((res) => setBookings(res.data))
+      .catch((err) => setError(err instanceof Error ? err.message : "Erro ao carregar reservas"));
   }, [state.user]);
 
   useEffect(() => {
@@ -81,7 +85,16 @@ export function MyBookingsScreen() {
         <Text style={styles.title}>Minhas reservas</Text>
       </View>
 
-      {!bookings && <ActivityIndicator style={{ marginTop: 40 }} color={colors.brand} />}
+      {!bookings && !error && <ActivityIndicator style={{ marginTop: 40 }} color={colors.brand} />}
+
+      {error && (
+        <View style={styles.errorBox}>
+          <Text style={styles.error}>{error}</Text>
+          <TouchableOpacity style={styles.retryBtn} onPress={load}>
+            <Text style={styles.retryBtnText}>Tentar novamente</Text>
+          </TouchableOpacity>
+        </View>
+      )}
 
       <ScrollView contentContainerStyle={styles.content}>
         {bookings?.length === 0 && (
@@ -127,6 +140,15 @@ const styles = StyleSheet.create({
   title: { fontSize: 24, fontWeight: "800", color: colors.slate950 },
   content: { padding: 20, paddingTop: 4, gap: 12 },
   empty: { textAlign: "center", color: colors.slate500, marginTop: 40 },
+  errorBox: { alignItems: "center", marginTop: 40, paddingHorizontal: 20, gap: 12 },
+  error: { color: colors.red, textAlign: "center" },
+  retryBtn: {
+    backgroundColor: colors.brand,
+    borderRadius: 10,
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+  },
+  retryBtnText: { color: colors.white, fontWeight: "700", fontSize: 13 },
   card: {
     backgroundColor: colors.white,
     borderRadius: 14,
